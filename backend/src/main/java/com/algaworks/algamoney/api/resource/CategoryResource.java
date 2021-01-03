@@ -1,12 +1,13 @@
 package com.algaworks.algamoney.api.resource;
 
-import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 
 import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,8 +17,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import com.algaworks.algamoney.api.event.CreateResourceEvent;
 import com.algaworks.algamoney.api.model.Category;
 import com.algaworks.algamoney.api.repository.CategoryRepository;
 
@@ -27,6 +28,9 @@ public class CategoryResource {
 	
 	@Autowired
 	private CategoryRepository categoryRepository;
+	
+	@Autowired
+	private ApplicationEventPublisher publisher;
 
 	@GetMapping
 	public List<Category> listAll(){
@@ -35,14 +39,10 @@ public class CategoryResource {
 	
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
-	public ResponseEntity<Category> save(@RequestBody Category category, HttpServletResponse response){
+	public ResponseEntity<Category> save(@Valid @RequestBody Category category, HttpServletResponse response){
 		Category categorySave =	categoryRepository.save(category);
-		
-		URI uri = ServletUriComponentsBuilder.fromCurrentRequestUri().path("/{code}")
-				.buildAndExpand(categorySave.getCode()).toUri();
-		response.setHeader("Location", uri.toASCIIString());
-		
-		return ResponseEntity.created(uri).body(categorySave);
+		publisher.publishEvent(new CreateResourceEvent(this, response, category.getCode()));
+		return ResponseEntity.status(HttpStatus.CREATED).body(categorySave);
 	}
 	
 	@GetMapping("/{code}")
