@@ -6,7 +6,10 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import javax.persistence.Transient;
 import javax.validation.constraints.NotNull;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import lombok.Data;
 
@@ -24,4 +27,9 @@ public class Person {
 	private Address address;
 	@NotNull
 	private Boolean active;
+	@JsonIgnore
+	@Transient
+	public boolean isInactive() {
+		return !this.active;
+	}
 }

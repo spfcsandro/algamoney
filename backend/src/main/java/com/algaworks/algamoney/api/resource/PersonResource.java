@@ -51,7 +51,7 @@ public class PersonResource {
 	}
 	
 	@GetMapping("/{code}")
-	public ResponseEntity<Person> findById(@PathVariable Long code) {
+	public ResponseEntity<Person> findByCode(@PathVariable Long code) {
 		 Optional<Person> person = personRepository.findById(code);
 			return person.isPresent() ? 
 					ResponseEntity.ok(person.get()) : ResponseEntity.notFound().build();
