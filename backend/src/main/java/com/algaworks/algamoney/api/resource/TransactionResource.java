@@ -11,8 +11,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,6 +30,7 @@ import com.algaworks.algamoney.api.event.CreateResourceEvent;
 import com.algaworks.algamoney.api.exceptionhandler.AlgamoneyExceptionHandler.Erro;
 import com.algaworks.algamoney.api.model.Transaction;
 import com.algaworks.algamoney.api.repository.TransactionRepository;
+import com.algaworks.algamoney.api.repository.filter.TransactionFilter;
 import com.algaworks.algamoney.api.service.TransactionService;
 import com.algaworks.algamoney.api.service.exception.PersonInexistenteOuInativaException;
 
@@ -46,11 +51,13 @@ public class TransactionResource {
 	private MessageSource messageSource;
 	
 	@GetMapping
-	public List<Transaction> listAll() {
-		return transactionRepository.findAll();
+	@PreAuthorize("hasAuthority('ROLE_FILTER_TRANSACTION') and #oauth2.hasScope('read')")
+	public Page<Transaction> listAll(TransactionFilter transactionFilter, Pageable pageable) {
+		return transactionRepository.filter(transactionFilter, pageable);
 	}
 	
 	@GetMapping("/{code}")
+	@PreAuthorize("hasAuthority('ROLE_FILTER_TRANSACTION') and #oauth2.hasScope('read')")
 	public ResponseEntity<Transaction> findByCode(@PathVariable Long code) {
 		Optional<Transaction> transaction = transactionRepository.findById(code);
 		return transaction.isPresent() ? 
@@ -58,6 +65,7 @@ public class TransactionResource {
 	}
 	
 	@PostMapping
+	@PreAuthorize("hasAuthority('ROLE_CREATE_TRANSACTION') and #oauth2.hasScope('write')")
 	@ResponseStatus(HttpStatus.CREATED)
 	public ResponseEntity<Transaction> save(@Valid @RequestBody Transaction transaction, HttpServletResponse response){
 		Transaction transactionSave = transactionService.save(transaction);
@@ -66,11 +74,18 @@ public class TransactionResource {
 	}
 	
 	@ExceptionHandler({ PersonInexistenteOuInativaException.class })
+	@PreAuthorize("hasAuthority('ROLE_DELETE_TRANSACTION') and #oauth2.hasScope('write')")
 	public ResponseEntity<Object> handlePersonInexistenteOuInativaException(PersonInexistenteOuInativaException ex) {
 		String mensagemUsuario = messageSource.getMessage("pessoa.inexistente-ou-inativa", null, LocaleContextHolder.getLocale());
 		String mensagemDesenvolvedor = ex.toString();
 		List<Erro> erros = Arrays.asList(new Erro(mensagemUsuario, mensagemDesenvolvedor));
 		return ResponseEntity.badRequest().body(erros);
+	}
+	
+	@DeleteMapping("/{code}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void deleteById(@PathVariable Long code) {
+		transactionRepository.deleteById(code);
 	}
 	
 }
