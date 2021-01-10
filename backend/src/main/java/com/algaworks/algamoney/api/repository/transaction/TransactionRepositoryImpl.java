@@ -16,9 +16,12 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.util.StringUtils;
 
+import com.algaworks.algamoney.api.model.Category_;
+import com.algaworks.algamoney.api.model.Person_;
 import com.algaworks.algamoney.api.model.Transaction;
 import com.algaworks.algamoney.api.model.Transaction_;
 import com.algaworks.algamoney.api.repository.filter.TransactionFilter;
+import com.algaworks.algamoney.api.repository.projection.TransactionResume;
 
 public class TransactionRepositoryImpl implements TransactionRepositoryQuery{
 
@@ -52,7 +55,7 @@ public class TransactionRepositoryImpl implements TransactionRepositoryQuery{
 		return manager.createQuery(criteria).getSingleResult();
 	}
 
-	private void createRestrictionPageable(TypedQuery<Transaction> query, Pageable pageable) {
+	private void createRestrictionPageable(TypedQuery<?> query, Pageable pageable) {
 		int currentPage = pageable.getPageNumber();
 		int totalRecordPage = pageable.getPageSize();
 		int firstRecordPage = currentPage * totalRecordPage;
@@ -82,5 +85,28 @@ public class TransactionRepositoryImpl implements TransactionRepositoryQuery{
 		
 		return predicates.toArray(new Predicate[predicates.size()]);
 	}
+	
+	@Override
+	public Page<TransactionResume> resume(TransactionFilter transactionFilter, Pageable pageable) {
+		CriteriaBuilder builder = manager.getCriteriaBuilder();
+		CriteriaQuery<TransactionResume> criteria = builder.createQuery(TransactionResume.class);
+		Root<Transaction> root = criteria.from(Transaction.class);
+		
+		criteria.select(builder.construct(TransactionResume.class
+				, root.get(Transaction_.code), root.get(Transaction_.description)
+				, root.get(Transaction_.dueDate), root.get(Transaction_.paymentDate)
+				, root.get(Transaction_.value), root.get(Transaction_.type)
+				, root.get(Transaction_.category).get(Category_.name)
+				, root.get(Transaction_.person).get(Person_.name)));
+		
+		Predicate[] predicates = restriction(transactionFilter, builder, root);
+		criteria.where(predicates);
+		
+		TypedQuery<TransactionResume> query = manager.createQuery(criteria);
+		createRestrictionPageable(query, pageable);
+		
+		return new PageImpl<>(query.getResultList(), pageable, total(transactionFilter));
+	}
+
 
 }

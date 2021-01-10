@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -31,6 +32,7 @@ import com.algaworks.algamoney.api.exceptionhandler.AlgamoneyExceptionHandler.Er
 import com.algaworks.algamoney.api.model.Transaction;
 import com.algaworks.algamoney.api.repository.TransactionRepository;
 import com.algaworks.algamoney.api.repository.filter.TransactionFilter;
+import com.algaworks.algamoney.api.repository.projection.TransactionResume;
 import com.algaworks.algamoney.api.service.TransactionService;
 import com.algaworks.algamoney.api.service.exception.PersonInexistenteOuInativaException;
 
@@ -54,6 +56,12 @@ public class TransactionResource {
 	@PreAuthorize("hasAuthority('ROLE_FILTER_TRANSACTION') and #oauth2.hasScope('read')")
 	public Page<Transaction> listAll(TransactionFilter transactionFilter, Pageable pageable) {
 		return transactionRepository.filter(transactionFilter, pageable);
+	}
+	
+	@GetMapping(params = "resume")
+	@PreAuthorize("hasAuthority('ROLE_FILTER_TRANSACTION') and #oauth2.hasScope('read')")
+	public Page<TransactionResume> reume(TransactionFilter transactionFilter, Pageable pageable) {
+		return transactionRepository.resume(transactionFilter, pageable);
 	}
 	
 	@GetMapping("/{code}")
@@ -86,6 +94,17 @@ public class TransactionResource {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void deleteById(@PathVariable Long code) {
 		transactionRepository.deleteById(code);
+	}
+	
+	@PutMapping("/{code}")
+	@PreAuthorize("hasAuthority('ROLE_CREATE_TRANSACTION')")
+	public ResponseEntity<Transaction> update(@PathVariable Long code, @Valid @RequestBody Transaction transaction) {
+		try {
+			Transaction transactionSave = transactionService.update(code, transaction);
+			return ResponseEntity.ok(transactionSave);
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.notFound().build();
+		}
 	}
 	
 }
